@@ -61,14 +61,16 @@ typedef volatile  CSL_SpiRegs* CSL_SpiRegsOvly;
 #pragma DATA_SECTION(hGpio,".testData");
 CSL_GpioHandle  hGpio;
 
-Uint16 bCon = 1;
+  Int32 pinNum = 0;
+
+Uint16 bCon = 0;
 
 
 void initGPIO(){
     Int32 instNum = 0;
    // Each GPIO pin (GPn) can be configured to generate a CPU interrupt (GPINTn) and a
    // synchronization event to the EDMA (GPINTn).
-    Int32 pinNum = 0;
+
     Uint8 bankNum = 0;
     hGpio = CSL_GPIO_open(instNum);
 
@@ -94,8 +96,8 @@ void initGPIO(){
        // CSL_GPIO_setFallingEdgeDetect (hGpio, pinNum);
        // Enable GPIO per bank interrupt for bank zero
        CSL_GPIO_bankInterruptEnable (hGpio, bankNum);
-*/
 
+*/
       // CSL_GPIO_clearOutputData (hGpio, pinNum);   //GPIO_0=0
       // CSL_GPIO_setOutputData (hGpio, pinNum);     //GPIO_0=1
 }
@@ -173,11 +175,11 @@ void Setup_Edma (Uint32 srcBuf,Uint32 dstBuf)
     paramSetup.option       = CSL_EDMA3_OPT_MAKE(CSL_EDMA3_ITCCH_DIS,
                                                  CSL_EDMA3_TCCH_DIS,
                                                  CSL_EDMA3_ITCINT_DIS,
-                                                 CSL_EDMA3_TCINT_DIS,      /* or CSL_EDMA3_TCINT_DIS  !!!может отключить его!!! CSL_EDMA3_TCINT_EN*/
+                                                 CSL_EDMA3_TCINT_EN,      /* or CSL_EDMA3_TCINT_DIS  !!!может отключить его!!! CSL_EDMA3_TCINT_EN*/
                                                  CSL_EDMA3CC1_GPINT0,  /* CSL_EDMA3_CHA_2,  CSL_EDMA3CC1_GPINT0 . TCC code  for IPR interrupt reg */
                                                  CSL_EDMA3_TCC_NORMAL,
                                                   CSL_EDMA3_FIFOWIDTH_NONE,
-                                                  CSL_EDMA3_STATIC_DIS,
+                                                  CSL_EDMA3_STATIC_DIS, /* CSL_EDMA3_STATIC_EN CSL_EDMA3_STATIC_DIS*/
                                                   CSL_EDMA3_SYNC_A,
                                                   CSL_EDMA3_ADDRMODE_INCR,
                                                   CSL_EDMA3_ADDRMODE_INCR);
@@ -194,7 +196,7 @@ void Setup_Edma (Uint32 srcBuf,Uint32 dstBuf)
     paramSetup.dstAddr      =  (Uint32)& (SPI_SPIDAT0);
 #endif
 
-    paramSetup.linkBcntrld  = CSL_EDMA3_LINKBCNTRLD_MAKE(CSL_EDMA3_LINK_NULL,0);
+    paramSetup.linkBcntrld  = CSL_EDMA3_LINKBCNTRLD_MAKE(paramHandle0,0);  // (paramHandle0,0); (CSL_EDMA3_LINK_NULL,0);
 // set options
     CSL_edma3ParamSetup(paramHandle0,&paramSetup);
 // RX
@@ -209,7 +211,7 @@ void Setup_Edma (Uint32 srcBuf,Uint32 dstBuf)
                                                  CSL_EDMA3_CHA_3,
                                                  CSL_EDMA3_TCC_NORMAL,
                                                   CSL_EDMA3_FIFOWIDTH_NONE,
-                                                  CSL_EDMA3_STATIC_DIS,
+                                                  CSL_EDMA3_STATIC_DIS, /* CSL_EDMA3_STATIC_EN  CSL_EDMA3_STATIC_DIS*/
                                                   CSL_EDMA3_SYNC_A,
                                                   CSL_EDMA3_ADDRMODE_INCR,
                                                   CSL_EDMA3_ADDRMODE_INCR);
@@ -227,7 +229,8 @@ void Setup_Edma (Uint32 srcBuf,Uint32 dstBuf)
     else
         paramSetup.dstAddr      = (Uint32)dstBuf;
 
-    paramSetup.linkBcntrld  = CSL_EDMA3_LINKBCNTRLD_MAKE(CSL_EDMA3_LINK_NULL,0);
+   // (paramHandle1,0)   (CSL_EDMA3_LINK_NULL,0);
+    paramSetup.linkBcntrld  =  CSL_EDMA3_LINKBCNTRLD_MAKE(paramHandle1,0);
 // set options
     CSL_edma3ParamSetup(paramHandle1,&paramSetup);
 
@@ -238,7 +241,7 @@ void Setup_Edma (Uint32 srcBuf,Uint32 dstBuf)
     // - Enables the EDMA interrupt using CSL_EDMA3_CMD_INTR_ENABLE.
     // Interrupt enable (Bits 0-2)  for the global region interrupts
     regionIntr.region = CSL_EDMA3_REGION_GLOBAL;
-    regionIntr.intr   = 0x08; // 47
+    regionIntr.intr   = 0xff; // 47
     regionIntr.intrh  = 0x0000;
     CSL_edma3HwControl(hModule,CSL_EDMA3_CMD_INTR_ENABLE,&regionIntr);
 
@@ -316,7 +319,7 @@ void Setup_SPI (  uint32_t      freq)
     /* Put SPI in Lpbk mode  CSL_SPI_SPIGCR1_LOOPBACK_DISABLE    CSL_SPI_SPIGCR1_LOOPBACK_ENABLE*/
     //((CSL_SpiRegsOvly) CSL_SPI_REGS)->SPIGCR1 |=
     SPI_SPIGCR1 |=
-            CSL_SPI_SPIGCR1_LOOPBACK_DISABLE<<CSL_SPI_SPIGCR1_LOOPBACK_SHIFT;
+            CSL_SPI_SPIGCR1_LOOPBACK_ENABLE<<CSL_SPI_SPIGCR1_LOOPBACK_SHIFT;
 
     /* Chose SPIFMT0  Choose the SPI data format register n (SPIFMTn)
      *  to be used by configuring the DFSEL bit in the SPI transmit data register (SPIDAT1)
@@ -536,7 +539,7 @@ void main (void)
     //Initiate src/dst buffers
     Initiate_Buffers(TEST_ACNT,TEST_BCNT, TEST_CCNT,TEST_ACNT ,TEST_ACNT, TEST_ACNT*TEST_BCNT, TEST_ACNT*TEST_BCNT,(Uint32)srcBuf,(Uint32)dstBuf, CSL_EDMA3_SYNC_A);
 
-    initGPIO();
+
     //Setup EDMA for SPI transfer
     Setup_Edma((Uint32)srcBuf,(Uint32)dstBuf);
 
@@ -544,29 +547,28 @@ void main (void)
     set_edma_intc();
 
     //Configure SPI in loopback mode and enable DMA interrupt support
-    Setup_SPI( 1000000);
+    Setup_SPI( 20000000);
+
+    initGPIO();
+/* Play forever */
+while(1) {
 
 /*
     // test GPIO DMA trigger
     for ( i = 0; i < BUF_SIZE; ++i ){
         // Toggle GPIO_0 pin to trigger GPIO interrupt
            CSL_GPIO_clearOutputData (hGpio, 0);   //GPIO_0=0
-           platform_delay(100000);
+           platform_delay(50000);
            CSL_GPIO_setOutputData (hGpio, 0);     //GPIO_0=1
-           platform_delay(100000);
+           platform_delay(50000);
     }
 */
-    //Check EDMA transfer completion status
-  //  Test_Edma();
- //while (bCon) {}
-
-    /* Play forever */
-    while(1) {
-
 
     }
 
-
+    //Check EDMA transfer completion status
+    //  Test_Edma();
+     //while (!bCon) {}
     //Close EDMA channels/module                                        */
     Close_Edma();
     my_spi_release();
@@ -581,6 +583,98 @@ void main (void)
 
     printf("end of test\n");
 
+}
+
+
+// ISR function
+void EDMAInterruptHandler (void *arg){
+
+    int i =0;
+   extern far CSL_CPINTCSystemInterrupt   sys_event;
+   extern far CSL_CPINTCHostInterrupt     host_event;
+   extern far CSL_CPINTC_Handle           cphnd;
+   extern far CSL_IntcHandle              edmaIntcHandle;
+
+ /*   // need far
+    extern far CSL_Edma3Handle hModule;
+    extern far CSL_Edma3CmdIntr regionIpr;
+ */
+
+ //  CSL_GPIO_bankInterruptDisable (hGpio, 0);
+ //  CSL_GPIO_clearRisingEdgeDetect (hGpio, pinNum);
+
+    /* Disable the CIC0 host interrupt output */
+    CSL_CPINTC_disableHostInterrupt(cphnd, host_event);
+    /* Clear the CIC0 system interrupt */
+    CSL_CPINTC_clearSysInterrupt(cphnd, sys_event);
+
+/*
+ * When an interrupt transfer completion code with TCC = n is detected by the EDMA3CC, then the
+ * corresponding bit is set in the interrupt pending register (IPR.I n, if n = 0 to 31; IPRH.I n, if n = 32 to 63).
+ * Note that once a bit is set in the interrupt pending registers, it remains set; it is your responsibility to clear
+ * these bits. The bits set in IPR/IPRH are cleared by writing a 1 to the corresponding bits in the interrupt
+ * clear registers (ICR/ICRH).
+ *
+ */
+    regionIpr.region  = CSL_EDMA3_REGION_GLOBAL;
+    regionIpr.intr    = 0;
+    regionIpr.intrh   = 0;
+    CSL_edma3GetHwStatus(hModule,CSL_EDMA3_QUERY_INTRPEND,&regionIpr);
+
+    //  Read the interrupt pending register (IPR/IPRH).
+
+     if((regionIpr.intr & 0x08) != 0x08){ //channel_3 - 0x08 .
+             printf("channel_3 intc\n");
+     }
+
+     if((regionIpr.intr & 0x40) != 0x40){   //channel_2 - 0x04 . channel_6 - 0x40
+         printf("channel_2|6 intc\n");
+     }
+     // test
+        for(i = 0; i <BUF_SIZE ;++i){
+            srcBuf[i]++;
+        }
+       /* */
+
+        //Close_Edma();
+      //Setup_Edma((Uint32)srcBuf,(Uint32)dstBuf);
+
+       // Trigger_Edma_Channels();
+
+        // Disable DMA Request
+          ((CSL_SpiRegsOvly) CSL_SPI_REGS)->SPIINT0 &=\
+              ~(CSL_SPI_SPIINT0_DMAREQEN_ENABLE<<CSL_SPI_SPIINT0_DMAREQEN_SHIFT);
+
+       // Enable DMA Request
+         ((CSL_SpiRegsOvly) CSL_SPI_REGS)->SPIINT0 |=\
+              CSL_SPI_SPIINT0_DMAREQEN_ENABLE<<CSL_SPI_SPIINT0_DMAREQEN_SHIFT;
+
+
+  /* Clear pending interrupt */
+        CSL_edma3HwControl(hModule,CSL_EDMA3_CMD_INTRPEND_CLEAR, &regionIpr);
+
+        /* Clear the event ID. */
+    //  CSL_intcEventClear((CSL_IntcEventId)arg);
+
+      /* Clear the CorePac interrupt */
+      CSL_intcHwControl(edmaIntcHandle,CSL_INTC_CMD_EVTCLEAR,NULL);
+
+
+      /* Enable the CIC0 host interrupt output */
+      CSL_CPINTC_enableHostInterrupt(cphnd, host_event);
+      // Event Enable  дозволяємо подію
+      // CSL_intcHwControl(edmaIntcHandle, CSL_INTC_CMD_EVTENABLE, NULL);
+
+
+     // bCon = 0;
+      bCon ++;
+
+
+
+
+ //        CSL_GPIO_setRisingEdgeDetect (hGpio, pinNum);
+  //       CSL_GPIO_bankInterruptEnable (hGpio, 0);
+     //    CSL_GPIO_clearInterruptStatus (hGpio, pinNum);
 }
 
 

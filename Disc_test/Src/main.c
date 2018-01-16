@@ -95,8 +95,9 @@ int main(void)
   /* USER CODE BEGIN Init */
  // WM5102_LINE_IN  |  WM5102_DMIC_IN  | 
 	//stm32_wm5102_init(FS_48000_HZ, WM5102_DMIC_IN, IO_METHOD_POLL);
+	MX_SPI1_Init();
 	
-		stm32_wm5102_init(FS_48000_HZ,
+	stm32_wm5102_init(FS_48000_HZ,
 	                  WM5102_DMIC_IN,
 										IO_METHOD_INTR);
   /* USER CODE END Init */
@@ -112,7 +113,7 @@ int main(void)
  // MX_GPIO_Init();
  // MX_I2C2_Init();
  // MX_I2S2_Init();
-  MX_SPI1_Init();
+  
 
   /* USER CODE BEGIN 2 */
 	int err;
@@ -442,6 +443,9 @@ static void MX_GPIO_Init(void)
   *         you can add your own implementation. 
   * @retval None
   */
+
+uint16_t in=66, out=88; // test
+
 void HAL_I2SEx_TxRxCpltCallback(I2S_HandleTypeDef *hi2s)
 {
 	cntF++;
@@ -455,43 +459,60 @@ void HAL_I2SEx_TxRxCpltCallback(I2S_HandleTypeDef *hi2s)
 	// toggle GPIO  
 		//left_out_sample = left_in_sample;
 		// 1 ms  - long - bad
-		HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2);
+		//HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2);
+		
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_SET);
 		//                                           TX for DSP                 RX for Codec
-	
+	HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2);
 		//HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2, 1);
 		//HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7);
-		//for (i = 0 ; i < 168; ++ i){} // delay  ~1us  168 MHz
-	//	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
+		for (i = 0 ; i < 168; ++ i){} // delay  ~1us  168 MHz
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
 	}
 	else{
 		// right
 		//left_out_sample = left_in_sample;
-		HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2);
+		//HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2);
+		
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_SET);
 		//                                           TX for DSP                 RX for Codec
-		
+		HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2);
 	//	HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2, 1);
 	//	right_out_sample = right_in_sample;
 	//	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7);
-	//for (i = 0 ; i < 168; ++ i){}//delay
-	//	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
+	for (i = 0 ; i < 168; ++ i){}//delay
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
 	}
 	
 	//	status = HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *) pTxDat,(uint8_t *) pRxDat, 2);
-		if(status != HAL_OK)
-		{
+	//	if(status != HAL_OK)
+	//	{
 			/* Transfer error in transmission process */
-			 _Error_Handler(__FILE__, __LINE__);
-		}
+	//		 _Error_Handler(__FILE__, __LINE__);
+	//	}
 		
 }
 
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 {
+	cntF;
+	out = in;
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
 }
 
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+	cntF;
+	out = in;
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
+}
+
+void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+	cntF;
+	out = in;
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
+}
 /* USER CODE END 4 */
 
 /**
