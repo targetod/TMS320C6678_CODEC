@@ -13,6 +13,12 @@ CSL_Edma3ParamHandle paramHandle0;
 #pragma DATA_SECTION(paramHandle1,".testData");
 CSL_Edma3ParamHandle paramHandle1;
 
+#pragma DATA_SECTION(paramHandle0_circle,".testData");
+CSL_Edma3ParamHandle paramHandle0_circle;
+
+#pragma DATA_SECTION(paramHandle1_circle,".testData");
+CSL_Edma3ParamHandle paramHandle1_circle;
+
 #pragma DATA_SECTION(chParam,".testData");
 CSL_Edma3ChannelAttr  chParam;
 

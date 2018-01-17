@@ -77,6 +77,7 @@ static void MX_SPI1_Init(void);
 	int16_t cntF=0;
 	uint8_t arr[6] = { 7, 8, 2, 6, 8, 4};	
 	int i =0;
+	uint16_t in=66, out=88; // test
 /* USER CODE END 0 */
 
 int main(void)
@@ -95,11 +96,12 @@ int main(void)
   /* USER CODE BEGIN Init */
  // WM5102_LINE_IN  |  WM5102_DMIC_IN  | 
 	//stm32_wm5102_init(FS_48000_HZ, WM5102_DMIC_IN, IO_METHOD_POLL);
-	MX_SPI1_Init();
+	
 	
 	stm32_wm5102_init(FS_48000_HZ,
 	                  WM5102_DMIC_IN,
 										IO_METHOD_INTR);
+	MX_SPI1_Init();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -173,6 +175,7 @@ int main(void)
 				_Error_Handler(__FILE__, __LINE__);
 			}
 
+				HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2);
 			/*##-3- Wait for the end of the transfer ###################################*/  
 			/*  Before starting a new communication transfer, you need to check the current   
 					state of the peripheral; if it’s busy you need to wait for the end of current
@@ -302,9 +305,9 @@ static void MX_SPI1_Init(void)
   hspi1.Init.Mode = SPI_MODE_SLAVE;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
   hspi1.Init.DataSize = SPI_DATASIZE_16BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_HIGH;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_HARD_INPUT;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -444,7 +447,7 @@ static void MX_GPIO_Init(void)
   * @retval None
   */
 
-uint16_t in=66, out=88; // test
+
 
 void HAL_I2SEx_TxRxCpltCallback(I2S_HandleTypeDef *hi2s)
 {
@@ -452,36 +455,40 @@ void HAL_I2SEx_TxRxCpltCallback(I2S_HandleTypeDef *hi2s)
 	HAL_StatusTypeDef status;
   /* Turn LED4 on: Transfer in transmission process is correct */
   //BSP_LED_On(LED4);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
+		for (i = 0 ; i < 5; ++ i){} // delay  ~us  168 MHz
   if (__HAL_I2S_GET_FLAG(hi2s, I2S_FLAG_CHSIDE) == SET) 
 	{
+		
 		// left
 	// 1/ SPI_txrx set data 
 	// toggle GPIO  
 		//left_out_sample = left_in_sample;
 		// 1 ms  - long - bad
 		//HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2);
-		
+		//HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2);
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_SET);
 		//                                           TX for DSP                 RX for Codec
-	HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2);
+	
 		//HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2, 1);
 		//HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7);
-		for (i = 0 ; i < 168; ++ i){} // delay  ~1us  168 MHz
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
+		
+		//
 	}
 	else{
+		//HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
 		// right
 		//left_out_sample = left_in_sample;
 		//HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2);
-		
+		//	HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2);
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_SET);
 		//                                           TX for DSP                 RX for Codec
-		HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2);
+	
 	//	HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2, 1);
 	//	right_out_sample = right_in_sample;
 	//	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7);
-	for (i = 0 ; i < 168; ++ i){}//delay
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
+	//for (i = 0 ; i < 168; ++ i){}//delay
+	//	
 	}
 	
 	//	status = HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *) pTxDat,(uint8_t *) pRxDat, 2);
@@ -493,19 +500,7 @@ void HAL_I2SEx_TxRxCpltCallback(I2S_HandleTypeDef *hi2s)
 		
 }
 
-void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-	cntF;
-	out = in;
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
-}
 
-void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-	cntF;
-	out = in;
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
-}
 
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
