@@ -2,6 +2,15 @@
 
 #include "stm32f4_wm5102_init.h"
 
+/* my code fo dma
+*/
+extern DMA_HandleTypeDef hdma_spi2_rx;
+extern DMA_HandleTypeDef hdma_i2s2_ext_tx;
+extern DMA_HandleTypeDef hdma_spi1_rx;
+extern DMA_HandleTypeDef hdma_spi1_tx;
+extern void _Error_Handler(char *, int);
+extern I2S_HandleTypeDef hi2s2;
+
  typedef union 
 {
  uint16_t value;
@@ -329,7 +338,13 @@ void stm32_wm5102_init(uint16_t fs, int select_input, int io_method)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 	
-	
+		/* Configure PC7 in output pushpull mode  - Toggle  DSP*/
+		GPIO_InitStruct.Pin = GPIO_PIN_7;
+		GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+		GPIO_InitStruct.Pull = GPIO_NOPULL;
+		GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+		
 	WM_I2S2_Init();
 
   DonaldDelay(30000);
@@ -350,12 +365,7 @@ void stm32_wm5102_init(uint16_t fs, int select_input, int io_method)
 			HAL_NVIC_SetPriority(SPI2_IRQn, 1, 0);
 			HAL_NVIC_EnableIRQ(SPI2_IRQn);
  
-		 /* Configure PC7 in output pushpull mode  - Toggle */
-		GPIO_InitStruct.Pin = GPIO_PIN_7;
-		GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-		GPIO_InitStruct.Pull = GPIO_NOPULL;
-		GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
 	
 		//		DonaldDelay(30000);
 
@@ -365,7 +375,66 @@ void stm32_wm5102_init(uint16_t fs, int select_input, int io_method)
 	//  SPI_I2S_ITConfig(SPI2, SPI_I2S_IT_RXNE, ENABLE);
     break;
 
-//		case IO_METHOD_DMA:
+		case IO_METHOD_DMA:
+		  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
+  /* DMA1_Stream4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
+  /* DMA2_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+  /* DMA2_Stream3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream3_IRQn);
+	
+			  /* I2S2 DMA Init */
+    /* SPI2_RX Init */
+    hdma_spi2_rx.Instance = DMA1_Stream3;  // parameters for stream 3
+    hdma_spi2_rx.Init.Channel = DMA_CHANNEL_0; // DMA channel #0
+    hdma_spi2_rx.Init.Direction = DMA_PERIPH_TO_MEMORY; // from I2S peripheral to memory
+    hdma_spi2_rx.Init.PeriphInc = DMA_PINC_DISABLE;  // I2S peripheral address is fixed
+    hdma_spi2_rx.Init.MemInc = DMA_MINC_ENABLE;  // increment memory address
+    hdma_spi2_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;  // 16-bit sample values
+    hdma_spi2_rx.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
+    hdma_spi2_rx.Init.Mode = DMA_CIRCULAR;  // circular mode later
+    hdma_spi2_rx.Init.Priority = DMA_PRIORITY_HIGH; // set high priority
+    hdma_spi2_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;  // FIFO mode not used 
+    if (HAL_DMA_Init(&hdma_spi2_rx) != HAL_OK)   // initialise stream 3
+    {
+      _Error_Handler(__FILE__, __LINE__);
+    }
+
+    __HAL_LINKDMA(&hi2s2,hdmarx,hdma_spi2_rx);
+
+    /* I2S2_EXT_TX Init */
+    hdma_i2s2_ext_tx.Instance = DMA1_Stream4;  
+    hdma_i2s2_ext_tx.Init.Channel = DMA_CHANNEL_2;  // DMA channel #2
+    hdma_i2s2_ext_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;  // from memory to I2S peripheral
+    hdma_i2s2_ext_tx.Init.PeriphInc = DMA_PINC_DISABLE;  // I2S peripheral address is fixed
+    hdma_i2s2_ext_tx.Init.MemInc = DMA_MINC_ENABLE;  // increment memory address
+    hdma_i2s2_ext_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD; // 16-bit sample values
+    hdma_i2s2_ext_tx.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
+    hdma_i2s2_ext_tx.Init.Mode = DMA_CIRCULAR;  // circular mode later
+    hdma_i2s2_ext_tx.Init.Priority = DMA_PRIORITY_HIGH; // set high priority
+    hdma_i2s2_ext_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE; // FIFO mode not used 
+    if (HAL_DMA_Init(&hdma_i2s2_ext_tx) != HAL_OK)// initialise stream 4
+    {
+      _Error_Handler(__FILE__, __LINE__);
+    }
+
+    __HAL_LINKDMA(&hi2s2,hdmatx,hdma_i2s2_ext_tx);
+
+    /* I2S2 interrupt Init */
+    HAL_NVIC_SetPriority(SPI2_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(SPI2_IRQn);
+		
 //      RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);
 //      DMA_Cmd(DMA1_Stream3,DISABLE);
 //      DMA_DeInit(DMA1_Stream3);                                                    // parameters for stream 3
@@ -424,7 +493,7 @@ void stm32_wm5102_init(uint16_t fs, int select_input, int io_method)
 //   
 //      NVIC_EnableIRQ(DMA1_Stream3_IRQn);
 //      NVIC_EnableIRQ(DMA1_Stream4_IRQn);
-//    break;
+    break;
 
 //		default:
 //      NVIC_PriorityGroupConfig(NVIC_PriorityGroup_3);

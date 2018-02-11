@@ -9,7 +9,7 @@
   * inserted by the user or by software development tools
   * are owned by their respective copyright owners.
   *
-  * COPYRIGHT(c) 2017 STMicroelectronics
+  * COPYRIGHT(c) 2018 STMicroelectronics
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -45,14 +45,26 @@
 // Digital_Signal_Processing_Using_the_ARM_Cortex_M4 book.p 18
 // HAL lib is used. DMA and Intrerupt is not working.
 // There is  some problem  with HAL_I2SEx_TransmitReceive. But its working.
+
+// SPI mode
+//CLKPolarity 				CLKPhase 		MOSI changes on 		SCK value when inactive
+//SPI_POLARITY_HIGH 	SPI_PHASE_2EDGE 		   Edge 					High                      CPOL=1   CPHA=1  ??
+//SPI_POLARITY_LOW 		SPI_PHASE_2EDGE 	Rising Edge 					Low				          CPOL=   CPHA=
+//SPI_POLARITY_LOW 		SPI_PHASE_1EDGE 	Falling Edge 					Low		  				CPOL=0   CPHA=0
+//SPI_POLARITY_HIGH 	SPI_PHASE_1EDGE 	Rising Edge 					High											CPOL=   CPHA=
+
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c2;
 
 I2S_HandleTypeDef hi2s2;
+DMA_HandleTypeDef hdma_spi2_rx;
+DMA_HandleTypeDef hdma_i2s2_ext_tx;
 
 SPI_HandleTypeDef hspi1;
+DMA_HandleTypeDef hdma_spi1_rx;
+DMA_HandleTypeDef hdma_spi1_tx;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -62,6 +74,7 @@ SPI_HandleTypeDef hspi1;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_I2S2_Init(void);
 static void MX_SPI1_Init(void);
@@ -74,10 +87,12 @@ static void MX_SPI1_Init(void);
 /* USER CODE BEGIN 0 */
   int16_t left_out_sample, right_out_sample;
   int16_t left_in_sample, right_in_sample;
-	int16_t cntF=0;
-	uint8_t arr[6] = { 7, 8, 2, 6, 8, 4};	
+	uint16_t cntF=0;
+	uint16_t rx[64] ;	
+	uint16_t tx[64] ={1,1,1,0,1,0,0,1,0,1,1,1,0};	
 	int i =0;
 	uint16_t in=66, out=88; // test
+	#define BUFFERSIZE 1
 /* USER CODE END 0 */
 
 int main(void)
@@ -94,28 +109,31 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+	
  // WM5102_LINE_IN  |  WM5102_DMIC_IN  | 
 	//stm32_wm5102_init(FS_48000_HZ, WM5102_DMIC_IN, IO_METHOD_POLL);
 	
-	
+	/*
 	stm32_wm5102_init(FS_48000_HZ,
 	                  WM5102_DMIC_IN,
 										IO_METHOD_INTR);
+	*/
+	stm32_wm5102_init(FS_8000_HZ,
+	                  WM5102_DMIC_IN,
+										IO_METHOD_DMA);
+	
 	MX_SPI1_Init();
   /* USER CODE END Init */
 
   /* Configure the system clock */
-//  SystemClock_Config();
+  //SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
- // MX_GPIO_Init();
- // MX_I2C2_Init();
- // MX_I2S2_Init();
-  
+
 
   /* USER CODE BEGIN 2 */
 	int err;
@@ -129,10 +147,51 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
-
-  while (1)
+	
+	
+ //DMA. While the SPI in TransmitReceive process, user can transmit data through 
+   //  "TxBuffer" buffer & receive data through "RxBuffer" 
+  if(HAL_I2SEx_TransmitReceive_DMA(&hi2s2, (uint16_t*)&left_out_sample, (uint16_t *)&left_in_sample, BUFFERSIZE) != HAL_OK)
   {
+    _Error_Handler(__FILE__, __LINE__);
+	}
+	//                                           TX for DSP                 RX for Codec
+	//if(HAL_SPI_TransmitReceive_DMA(&hspi1, (uint8_t*)&left_in_sample, (uint8_t *)&left_out_sample, 2*BUFFERSIZE) != HAL_OK){
+	if(HAL_SPI_TransmitReceive_DMA(&hspi1, (uint8_t*)&tx, (uint8_t *)rx, 64) != HAL_OK){
+		_Error_Handler(__FILE__, __LINE__);
+	}
+	
+while(1){
+}
+// DMA end
+
+/*
+// IT start
+while (1)
+{
+			if(HAL_I2SEx_TransmitReceive_IT(&hi2s2, (uint16_t *) &left_out_sample,  (uint16_t*) &left_in_sample, 1) != HAL_OK)
+			{
+						_Error_Handler(__FILE__, __LINE__);
+			}
+		  // Not working	
+			//if(HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2)!= HAL_OK){
+			//			_Error_Handler(__FILE__, __LINE__);
+			//}
+			
+			//##-3- Wait for the end of the transfer ################################### 
+			//  Before starting a new communication transfer, you need to check the current   
+			//		state of the peripheral; if it’s busy you need to wait for the end of current
+			//		transfer before starting a new one.
+			//		For simplicity reasons, this example is just waiting till the end of the 
+			//		transfer, but application may perform other tasks while transfer operation
+			//		is ongoing. 
+			while (HAL_I2S_GetState(&hi2s2) != HAL_I2S_STATE_READY) {} 
+}
+// IT end
+*/
+// Polling Start
+//  while (1)
+//  {
 //		// Receive buffer not empty flag
 //		while( __HAL_I2S_GET_FLAG(&hi2s2, I2S_FLAG_RXNE ) != SET) { }
 //		
@@ -163,31 +222,11 @@ int main(void)
 
   /* USER CODE BEGIN 3 */
 
-//			////////////////////////////////////////////////////////////////
-			//  IT  prog  
-				/*##-2- Start the Full Duplex Communication process ########################*/  
-			/* While the I2S in TransmitReceive process, user can transmit data through 
-				 "left_out_sample" buffer & receive data through "left_in_sample" */
-				 //                                        TX for Codec                 RX for DSP
-			if(HAL_I2SEx_TransmitReceive_IT(&hi2s2, (uint16_t *) &left_out_sample,  (uint16_t*) &left_in_sample, 1) != HAL_OK)
-			{
-				/* Transfer error in transmission process */
-				_Error_Handler(__FILE__, __LINE__);
-			}
 
-				HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2);
-			/*##-3- Wait for the end of the transfer ###################################*/  
-			/*  Before starting a new communication transfer, you need to check the current   
-					state of the peripheral; if it’s busy you need to wait for the end of current
-					transfer before starting a new one.
-					For simplicity reasons, this example is just waiting till the end of the 
-					transfer, but application may perform other tasks while transfer operation
-					is ongoing. */  
-			while (HAL_I2S_GetState(&hi2s2) != HAL_I2S_STATE_READY)
-			{
-			} 
 			
-  }
+ // }
+ // Poll end
+ 
   /* USER CODE END 3 */
 
 }
@@ -306,7 +345,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
   hspi1.Init.DataSize = SPI_DATASIZE_16BIT;
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;//SPI_PHASE_2EDGE
   hspi1.Init.NSS = SPI_NSS_SOFT;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
@@ -316,6 +355,31 @@ static void MX_SPI1_Init(void)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
+
+}
+
+/** 
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void) 
+{
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
+  /* DMA1_Stream4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
+  /* DMA2_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+  /* DMA2_Stream3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream3_IRQn);
 
 }
 
@@ -448,47 +512,48 @@ static void MX_GPIO_Init(void)
   */
 
 
-
+//  IT interupt
 void HAL_I2SEx_TxRxCpltCallback(I2S_HandleTypeDef *hi2s)
 {
-	cntF++;
+	
 	HAL_StatusTypeDef status;
   /* Turn LED4 on: Transfer in transmission process is correct */
   //BSP_LED_On(LED4);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
-		for (i = 0 ; i < 5; ++ i){} // delay  ~us  168 MHz
+	cntF++;
+//HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2);
   if (__HAL_I2S_GET_FLAG(hi2s, I2S_FLAG_CHSIDE) == SET) 
 	{
 		
 		// left
 	// 1/ SPI_txrx set data 
 	// toggle GPIO  
-		//left_out_sample = left_in_sample;
+		left_out_sample = left_in_sample;
 		// 1 ms  - long - bad
 		//HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2);
-		//HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2);
+	//	
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_SET);
+	//			for (i = 0 ; i < 20; ++ i){} // delay  ~us  168 MHz
 		//                                           TX for DSP                 RX for Codec
-	
+	 // HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2, 1);
 		//HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2, 1);
 		//HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7);
-		
+	//	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
 		//
 	}
 	else{
-		//HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
+		//
 		// right
-		//left_out_sample = left_in_sample;
+		left_out_sample = left_in_sample;
 		//HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2);
 		//	HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2);
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_SET);
 		//                                           TX for DSP                 RX for Codec
-	
-	//	HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)&left_in_sample, (uint8_t *)&left_out_sample, 2, 1);
+	//	HAL_SPI_TransmitReceive(&hspi1, (uint8_t *)&out, (uint8_t *)&in, 2, 1);
 	//	right_out_sample = right_in_sample;
 	//	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7);
-	//for (i = 0 ; i < 168; ++ i){}//delay
-	//	
+	//for (i = 0 ; i < 20; ++ i){}//delay
+	//	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
 	}
 	
 	//	status = HAL_SPI_TransmitReceive_IT(&hspi1, (uint8_t *) pTxDat,(uint8_t *) pRxDat, 2);
@@ -501,13 +566,39 @@ void HAL_I2SEx_TxRxCpltCallback(I2S_HandleTypeDef *hi2s)
 }
 
 
-
+// dma or interupt SPI
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
-	cntF;
 	out = in;
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
 }
+uint16_t ct =0;
+void myI2SEx_TxRxCpltCallback(I2S_HandleTypeDef *hi2s)
+{
+	
+	HAL_StatusTypeDef status;
+
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
+	cntF++;
+//	left_out_sample = left_in_sample;
+  if (__HAL_I2S_GET_FLAG(hi2s, I2S_FLAG_CHSIDE) == SET) {
+		// left
+	}
+	else{
+		// right
+		ct ++;
+		if (ct % 2 == 0)
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_SET);
+	}
+	
+}
+
+void mySPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+	//out = in;
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7,GPIO_PIN_RESET);
+}
+
 /* USER CODE END 4 */
 
 /**

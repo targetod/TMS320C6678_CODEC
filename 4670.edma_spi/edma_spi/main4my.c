@@ -65,6 +65,10 @@ CSL_GpioHandle  hGpio;
 
 Uint16 bCon = 0;
 
+#pragma DATA_SECTION(srcBuf2, ".gem0_data")
+#pragma DATA_ALIGN(srcBuf2, 8)
+Uint16 srcBuf2[BUF_SIZE] = {1, 5, 6, 7 , 8 , 77 , 77, 88, 654, 78, 98, 987, 452, 6546 , 786 , 764, 757, 53, 3};
+
 
 void initGPIO(){
     Int32 instNum = 0;
@@ -348,15 +352,26 @@ void Setup_SPI (  uint32_t      freq)
        scalar = ((SPI_MODULE_CLK / freq) - 1 ) & 0xFF;
     /* Configure for WAITEN=YES,SHIFTDIR=MSB,POLARITY=HIGH,PHASE=IN,CHARLEN=16*/
    // ((CSL_SpiRegsOvly) CSL_SPI_REGS)->SPIFMT[0]=
-    SPI_SPIFMT0 =
+ /*   SPI_SPIFMT0 =
         CSL_SPI_SPIFMT_WAITENA_DISABLE<<CSL_SPI_SPIFMT_WAITENA_SHIFT|
         CSL_SPI_SPIFMT_SHIFTDIR_MSB<<CSL_SPI_SPIFMT_SHIFTDIR_SHIFT|
         CSL_SPI_SPIFMT_POLARITY_LOW<<CSL_SPI_SPIFMT_POLARITY_SHIFT|
         CSL_SPI_SPIFMT_PHASE_NO_DELAY<<CSL_SPI_SPIFMT_PHASE_SHIFT|
         (scalar << CSL_SPI_SPIFMT_PRESCALE_SHIFT)                |
         0x10<<CSL_SPI_SPIFMT_CHARLEN_SHIFT;   // 16 bits
+*/
 
-
+       /* Clock Mode with POLARITY = 0 and PHASE = 0
+        * (A) Clock phase = 0    (SPICLK without delay)
+        * » Data is output on the rising edge of SPICLK.
+        * » Input data is latched on the falling edge of SPICLK.
+        * » A write to the SPIDAT register starts SPICLK
+        */
+    SPI_SPIFMT0 =   (16 << CSL_SPI_SPIFMT_CHARLEN_SHIFT)               |
+                       (scalar << CSL_SPI_SPIFMT_PRESCALE_SHIFT)                      |
+                       (CSL_SPI_SPIFMT_PHASE_NO_DELAY << CSL_SPI_SPIFMT_PHASE_SHIFT)     |
+                       (CSL_SPI_SPIFMT_POLARITY_LOW << CSL_SPI_SPIFMT_POLARITY_SHIFT) |
+                       (CSL_SPI_SPIFMT_SHIFTDIR_MSB << CSL_SPI_SPIFMT_SHIFTDIR_SHIFT);
     /*
      * delay in master mode
      * C2TDELAY is used in master mode only. It defines a setup time for the slave device that
@@ -368,8 +383,8 @@ void Setup_SPI (  uint32_t      freq)
      */
    // ((CSL_SpiRegsOvly) CSL_SPI_REGS)->SPIDELAY =
    // SPI_SPIDELAY =
-    //       (6 << CSL_SPI_SPIDELAY_C2TDELAY_SHIFT) |
-    //         (3 << CSL_SPI_SPIDELAY_T2CDELAY_SHIFT);
+        //   (6 << CSL_SPI_SPIDELAY_C2TDELAY_SHIFT) |
+        //     (3 << CSL_SPI_SPIDELAY_T2CDELAY_SHIFT);
 
     //((CSL_SpiRegsOvly) CSL_SPI_REGS)->SPIINT0 =
     SPI_SPIINT0 =
@@ -550,7 +565,9 @@ void main (void)
              out++;
     }
     */
-
+    my_spi_claim(SPI_CS1, 10000);
+    my_spi_xfer(128, ( Uint8*) srcBuf2,( Uint8*) dstBuf,TRUE);
+    my_spi_release();
 
     //Initiate src/dst buffers
     Initiate_Buffers(TEST_ACNT,TEST_BCNT, TEST_CCNT,TEST_ACNT ,TEST_ACNT, TEST_ACNT*TEST_BCNT, TEST_ACNT*TEST_BCNT,(Uint32)srcBuf,(Uint32)dstBuf, CSL_EDMA3_SYNC_A);
@@ -563,13 +580,13 @@ void main (void)
     set_edma_intc();
 
     //Configure SPI in loopback mode and enable DMA interrupt support
-    Setup_SPI( 5000000);
+    Setup_SPI( 3000000);
 
     initGPIO();
 /* Play forever */
-while(1) {
+/*while(1) {
 
-/*
+
     // test GPIO DMA trigger
     for ( i = 0; i < BUF_SIZE; ++i ){
         // Toggle GPIO_0 pin to trigger GPIO interrupt
@@ -578,13 +595,13 @@ while(1) {
            CSL_GPIO_setOutputData (hGpio, 0);     //GPIO_0=1
            platform_delay(50000);
     }
-*/
+
 
     }
-
+*/
     //Check EDMA transfer completion status
     //  Test_Edma();
-     //while (!bCon) {}
+     while (!bCon) {}
     //Close EDMA channels/module                                        */
     Close_Edma();
     my_spi_release();
@@ -640,16 +657,19 @@ void EDMAInterruptHandler (void *arg){
           //  Read the interrupt pending register (IPR/IPRH).
 
            if((regionIpr.intr & 0x08) != 0x08){ //channel_3 - 0x08 .
-                   printf("channel_3 intc\n");
+             //      printf("channel_3 intc\n");
            }
 
            if((regionIpr.intr & 0x40) != 0x40){   //channel_2 - 0x04 . channel_6 - 0x40
-               printf("channel_2|6 intc\n");
+             //  printf("channel_2|6 intc\n");
            }
            // test
-              for(i = 0; i <BUF_SIZE ;++i){
-                  srcBuf[i]++;
-              }
+            //  for(i = 0; i <BUF_SIZE ;++i){
+             //     srcBuf[i]++;
+             // }
+              //for(i = 0; i <BUF_SIZE ;++i){
+               //                 srcBuf[i]= dstBuf[i];
+              //}
              /* */
 
      // bCon = 0;
@@ -676,9 +696,9 @@ void EDMAInterruptHandler (void *arg){
       //            ~(CSL_SPI_SPIINT0_DMAREQEN_ENABLE<<CSL_SPI_SPIINT0_DMAREQEN_SHIFT);
 
       /* Enable the CIC0 host interrupt output */
-      CSL_CPINTC_enableHostInterrupt(cphnd, host_event);
+   //  CSL_CPINTC_enableHostInterrupt(cphnd, host_event);
  // for synchronization
-         CSL_GPIO_setRisingEdgeDetect (hGpio, pinNum);
+    //    CSL_GPIO_setRisingEdgeDetect (hGpio, pinNum);
   //       CSL_GPIO_bankInterruptEnable (hGpio, 0);
   //       CSL_GPIO_clearInterruptStatus (hGpio, pinNum);
 }

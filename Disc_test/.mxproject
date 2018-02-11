@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=D:/D/WorkSpace/tms320c6678_TMDSEVM6678L/ProjectConnetBoards/Disc_test/Inc
+HeaderPath=D:/D/WorkSpace/tms320c6678_TMDSEVM6678L/ProjectConnetBoards/C6678_CODEC/Disc_test/Inc
 HeaderFiles=stm32f4xx_it.h;stm32f4xx_hal_conf.h;main.h;
-SourcePath=D:/D/WorkSpace/tms320c6678_TMDSEVM6678L/ProjectConnetBoards/Disc_test/Src
+SourcePath=D:/D/WorkSpace/tms320c6678_TMDSEVM6678L/ProjectConnetBoards/C6678_CODEC/Disc_test/Src
 SourceFiles=stm32f4xx_it.h;stm32f4xx_hal_conf.h;main.h;stm32f4xx_it.c;stm32f4xx_hal_msp.c;main.c;
 
 [PreviousLibFiles]

@@ -77,10 +77,9 @@ SPI_STATUS my_spi_claim( uint32_t      cs,    uint32_t      freq)
     }
 
     /* Put SPI in Lpbk mode */
-
     //  ((CSL_SpiRegsOvly) CSL_SPI_REGS)->SPIGCR1 |=
-    SPI_SPIGCR1 |=
-          CSL_SPI_SPIGCR1_LOOPBACK_ENABLE<<CSL_SPI_SPIGCR1_LOOPBACK_SHIFT;
+   // SPI_SPIGCR1 |=
+    //      CSL_SPI_SPIGCR1_LOOPBACK_ENABLE<<CSL_SPI_SPIGCR1_LOOPBACK_SHIFT;
 
     /* hold cs active at end of transfer until explicitly de-asserted */
     data1_reg_val = (CSL_SPI_SPIDAT1_CSHOLD_ENABLE << CSL_SPI_SPIDAT1_CSHOLD_SHIFT) |
