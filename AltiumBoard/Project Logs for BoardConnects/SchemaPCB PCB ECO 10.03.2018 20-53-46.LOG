@@ -1,0 +1,18 @@
+Added Component: Designator=P6(1.27mm-80p)
+Added Pin To Net: NetName=DSP_I2C_SDA_IN Pin=P6-2
+Added Pin To Net: NetName=DSP_I2C_CLK_IN Pin=P6-3
+Added Pin To Net: NetName=DSP_TIM_I Pin=P6-30
+Added Pin To Net: NetName=DSP_TIM_O Pin=P6-31
+Added Pin To Net: NetName=DSP_MISO_IN Pin=P6-32
+Added Pin To Net: NetName=DSP_MOSI_IN Pin=P6-33
+Added Pin To Net: NetName=DSP_NSS_IN Pin=P6-34
+Added Pin To Net: NetName=DSP_SCK_IN Pin=P6-35
+Added Pin To Net: NetName=DSP_GPIOIN0 Pin=P6-65
+Added Pin To Net: NetName=DSP_GPIOIN1 Pin=P6-66
+Added Pin To Net: NetName=DSP_GPIOIN2 Pin=P6-67
+Added Pin To Net: NetName=DSP_GPIOIN3 Pin=P6-68
+Added Pin To Net: NetName=DSP_GPIOIN4 Pin=P6-69
+Added Pin To Net: NetName=DSP_GPIOIN5 Pin=P6-70
+Added Pin To Net: NetName=DSP_GPIOIN6 Pin=P6-71
+Added Pin To Net: NetName=DSP_GPIOIN7 Pin=P6-72
+Added Member To Class: ClassName=Schema Member=Component P6 1.27mm
